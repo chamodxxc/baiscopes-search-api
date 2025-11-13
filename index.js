@@ -1,56 +1,82 @@
-import * as cheerio from "cheerio";
+/**
+ * 🔍 Baiscope.lk Movie Search API
+ * 🧠 Scrapes movie search results directly from https://baiscopes.lk
+ * 👑 Creator: Chamod Nimsara
+ * ⚡ Host: Cloudflare Workers
+ */
 
 export default {
-  async fetch(request, env) {
+  async fetch(request) {
     const url = new URL(request.url);
-    const query = url.searchParams.get("q");
+    const query = url.searchParams.get('q');
+
+    // CORS headers
+    const headers = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
+
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers });
+    }
 
     if (!query) {
       return new Response(
-        JSON.stringify({ error: "Missing ?q= parameter" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Missing ?q= parameter", creator: "Chamod Nimsara" }),
+        { headers }
       );
     }
 
-    const searchUrl = `https://baiscopes.lk/?s=${encodeURIComponent(query)}`;
-
     try {
-      const response = await fetch(searchUrl, {
+      // Fetch search results page
+      const response = await fetch(`https://baiscopes.lk/?s=${encodeURIComponent(query)}`, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; WhiteShadowBot/1.0)",
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+          'Referer': 'https://baiscopes.lk/',
+          'Accept-Language': 'en-US,en;q=0.9',
         },
       });
+
       const html = await response.text();
+      const cheerio = await import('cheerio');
       const $ = cheerio.load(html);
 
       const results = [];
 
-      $(".post, article, .blog-post").each((_, el) => {
-        const title = $(el).find("h2 a, h3 a").first().text().trim();
-        const link = $(el).find("h2 a, h3 a").first().attr("href");
-        const img =
-          $(el).find("img").attr("src") || $(el).find("img").attr("data-src");
-        const excerpt = $(el).find("p").first().text().trim().slice(0, 150);
+      $('.post').each((i, el) => {
+        const title = $(el).find('.title a').text().trim();
+        const link = $(el).find('.title a').attr('href');
+        const img = $(el).find('img').attr('src');
+        const year = $(el).find('.year').text().trim() || null;
+        const quality = $(el).find('.quality').text().trim() || null;
 
-        if (title && link)
+        if (title && link) {
           results.push({
             title,
             link,
-            image: img || null,
-            description: excerpt || null,
+            img,
+            year,
+            quality,
           });
+        }
       });
 
-      return new Response(JSON.stringify({ query, count: results.length, results }), {
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
+      return new Response(
+        JSON.stringify({
+          query,
+          count: results.length,
+          creator: "Chamod Nimsara",
+          results,
+        }, null, 2),
+        { headers }
+      );
     } catch (err) {
       return new Response(
-        JSON.stringify({ error: err.message }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ error: err.message, creator: "Chamod Nimsara" }),
+        { headers }
       );
     }
   },

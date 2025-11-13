@@ -1,8 +1,7 @@
 /**
  * 🔍 Baiscope.lk Movie Search API
- * 🧠 Scrapes movie search results directly from https://baiscopes.lk
  * 👑 Creator: Chamod Nimsara
- * ⚡ Host: Cloudflare Workers
+ * ⚡ Cloudflare Workers
  */
 
 export default {
@@ -31,36 +30,32 @@ export default {
     }
 
     try {
-      // Fetch search results page
+      // Fetch search page with proper headers
       const response = await fetch(`https://baiscopes.lk/?s=${encodeURIComponent(query)}`, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Referer': 'https://baiscopes.lk/',
-          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Language': 'en-US,en;q=0.9'
         },
       });
 
       const html = await response.text();
+
+      // Load cheerio
       const cheerio = await import('cheerio');
       const $ = cheerio.load(html);
 
       const results = [];
 
+      // Updated selector - check Baiscopes.lk HTML structure
       $('.post').each((i, el) => {
-        const title = $(el).find('.title a').text().trim();
-        const link = $(el).find('.title a').attr('href');
-        const img = $(el).find('img').attr('src');
-        const year = $(el).find('.year').text().trim() || null;
-        const quality = $(el).find('.quality').text().trim() || null;
+        const title = $(el).find('h2.entry-title a, h3.entry-title a').text().trim();
+        const link = $(el).find('h2.entry-title a, h3.entry-title a').attr('href');
+        const img = $(el).find('img').attr('src') || null;
+        const excerpt = $(el).find('p').first().text().trim() || null;
 
         if (title && link) {
-          results.push({
-            title,
-            link,
-            img,
-            year,
-            quality,
-          });
+          results.push({ title, link, img, excerpt });
         }
       });
 
@@ -69,15 +64,16 @@ export default {
           query,
           count: results.length,
           creator: "Chamod Nimsara",
-          results,
+          results
         }, null, 2),
         { headers }
       );
+
     } catch (err) {
       return new Response(
         JSON.stringify({ error: err.message, creator: "Chamod Nimsara" }),
         { headers }
       );
     }
-  },
+  }
 };

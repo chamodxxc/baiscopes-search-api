@@ -1,0 +1,12 @@
+{
+  "name": "baiscope-search-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "dependencies": {
+    "cheerio": "^1.0.0"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
